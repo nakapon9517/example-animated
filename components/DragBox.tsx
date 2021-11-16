@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, LayoutChangeEvent, GestureResponderEvent, PanResponderGestureState } from "react-native";
+import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, GestureResponderEvent, PanResponderGestureState } from "react-native";
 
 export type Offset = {
   minX: number,
@@ -35,6 +35,7 @@ const DragBox = (props: Props) => {
   const pan = useRef(new Animated.ValueXY({ x: props.drag.layout.x, y: props.drag.layout.y })).current;
   const [currentDropped, setCurrendDropped] = React.useState<Droppable | undefined>({ id: 'a' });
   const [dragOffset, setDragOffset] = React.useState([0, 0])
+  let currentOffset = { x: props.drag.layout.x, y: props.drag.layout.y };
 
   const getDroppableInArea = React.useCallback((x: number, y: number): Droppable | undefined => {
     const _x = x - dragOffset[0];
@@ -52,24 +53,30 @@ const DragBox = (props: Props) => {
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        pan.setOffset({ x: pan.x._value, y: pan.y._value });
+      onMoveShouldSetPanResponderCapture: () => true,
+      onStartShouldSetPanResponder: () => false,
+
+      // onPanResponderRelease許可
+      onPanResponderTerminationRequest: () => true,
+      // onShouldBlockNativeResponder: () => true,
+
+      onPanResponderGrant: (e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+        pan.setOffset(currentOffset);
       },
       onPanResponderStart: (e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
         const { pageX, pageY } = e.nativeEvent;
         const { layout } = props.drag;
-        const dragOffset = [
+        const drag = [
           pageX - (layout.x + Math.round(layout.width / 2)),
           pageY - (layout.y + Math.round(layout.height / 2))
         ];
-        setDragOffset(dragOffset);
+        setDragOffset(drag);
         if (props.drag.onDragStart) props.drag.onDragStart();
       },
       onPanResponderMove: (e, gesture) => {
-        moveEvent(e, gesture);
         const { pageX, pageY } = e.nativeEvent;
         props.onChange(props.drag.id, pageX, pageY);
+
         const droppable  = getDroppableInArea(pageX, pageY);
         if (droppable) {
           if (currentDropped?.id === droppable.id) {
@@ -77,9 +84,11 @@ const DragBox = (props: Props) => {
             props.onMove && props.onMove();
           }
         }
+        moveEvent(e, gesture);
       },
       onPanResponderRelease: (e, gesture) => {
         const { pageX, pageY } = e.nativeEvent;
+        currentOffset = { x: currentOffset.x + gesture.dx, y: currentOffset.y + gesture.dy };
         const droppable  = getDroppableInArea(pageX, pageY);
         if (droppable) {
           if (currentDropped?.id === droppable.id) {
