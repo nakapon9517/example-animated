@@ -97,6 +97,7 @@ function BottomTabNavigator() {
         name="Animated"
         component={AnimatedScreen}
         options={{
+          headerShown: false,
           title: 'Animated',
           tabBarIcon: ({ color }) => <TabBarIcon name="arrow-down" color={color} />,
         }}
