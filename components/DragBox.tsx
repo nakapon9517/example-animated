@@ -24,26 +24,28 @@ type Droppable = {
 type Props = {
   drag: Draggable;
   count: number;
-  offset: Offset;
+  droppableOffset: Offset;
+  onChange: (id: string, x: number, y: number) => void;
   onPress?: () => void;
-  onDropped?: () => void;
+  onMove?: () => void;
+  onRelease?: () => void;
 } & ViewProps;
 
 const DragBox = (props: Props) => {
+  const pan = useRef(new Animated.ValueXY({ x: props.drag.layout.x, y: props.drag.layout.y })).current;
   const [currentDropped, setCurrendDropped] = React.useState<Droppable | undefined>({ id: 'a' });
   const [dragOffset, setDragOffset] = React.useState([0, 0])
-  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const getDroppableInArea = React.useCallback((x: number, y: number): Droppable | undefined => {
     const _x = x - dragOffset[0];
     const _y = y - dragOffset[1];
-    return (_x >= props.offset.minX &&
-        _x <= props.offset.maxX &&
-        _y >= props.offset.minY &&
-        _y <= props.offset.maxY)
+    return (_x >= props.droppableOffset.minX &&
+        _x <= props.droppableOffset.maxX &&
+        _y >= props.droppableOffset.minY &&
+        _y <= props.droppableOffset.maxY)
         ? currentDropped
         : undefined;
-  }, [dragOffset, currentDropped, props.offset]);
+  }, [dragOffset, currentDropped, props.droppableOffset]);
 
   const moveEvent = Animated.event([null, { dx: pan.x, dy: pan.y }]);
 
@@ -67,17 +69,23 @@ const DragBox = (props: Props) => {
       onPanResponderMove: (e, gesture) => {
         moveEvent(e, gesture);
         const { pageX, pageY } = e.nativeEvent;
-        console.debug(props.offset)
+        props.onChange(props.drag.id, pageX, pageY);
         const droppable  = getDroppableInArea(pageX, pageY);
         if (droppable) {
           if (currentDropped?.id === droppable.id) {
             setCurrendDropped(undefined);
-            props.onDropped && props.onDropped();
+            props.onMove && props.onMove();
           }
         }
       },
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
+      onPanResponderRelease: (e, gesture) => {
+        const { pageX, pageY } = e.nativeEvent;
+        const droppable  = getDroppableInArea(pageX, pageY);
+        if (droppable) {
+          if (currentDropped?.id === droppable.id) {
+            props.onRelease && props.onRelease();
+          }
+        }
       }
     })
   ).current;
@@ -85,7 +93,8 @@ const DragBox = (props: Props) => {
   return (
     <Animated.View
       style={[
-        { transform: [{ translateX: pan.x }, { translateY: pan.y }] }
+        { transform: [{ translateX: pan.x }, { translateY: pan.y }] },
+        { zIndex: 99 }
       ]}
       {...panResponder.panHandlers}
     >
@@ -98,14 +107,14 @@ const DragBox = (props: Props) => {
 
 const styles = StyleSheet.create({
   box: {
+    position: 'absolute',
     width: 80,
-    height: 60,
+    height: 50,
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ccc',
-    marginVertical: 12,
-    marginHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
   text: {
     color: '#000',
