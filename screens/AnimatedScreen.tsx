@@ -12,26 +12,28 @@ LogBox.ignoreLogs([
   'Animated.event now requires a second argument for options',
 ])
 
-const initialOffset = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+const initialOffset = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+const createDraggableData = (i: number):Draggable =>  ({
+  id: `draggable-${i}`,
+  layout: { x: (i * 60), y: (i * 60), width: 80, height: 60 },
+  dragging: false,
+  onDragStart: () => console.debug('onDragStart'),
+  onDragEnd: () => console.debug('onDragEnd'),
+  data: { count: i },
+});
 
 export default function AnimatedScreen({ navigation }: RootTabScreenProps<'Animated'>) {
-  const { width, height } = useWindowDimensions();
   const { top, right, bottom, left } = useSafeAreaInsets();
   const [total, setTotal] = React.useState(0);
+  const [drag, setDrag] = React.useState(createDraggableData(0));
   const [droppableOffset, setDroppableOffset] = React.useState<Offset>(initialOffset);
   const [buttonGroupOffset, setButtonGroupOffset] = React.useState<Offset>(initialOffset);
-  const [draggables, setDraggables] = React.useState<Draggable[]>([]);
-  const [hideIds, setHideIds] = React.useState<number[]>([]);
-  
-  React.useEffect(() => {
-    setDraggables(Array(5).fill(undefined).map((_,i) => createDraggableData(i)));
-    setHideIds([]);
-    // reset();
-  }, []);
+  const [draggables, setDraggables] = React.useState<Draggable[]>(Array(4).fill(undefined).map((_,i) => createDraggableData(i)));
 
-  // React.useLayoutEffect(() => {
-  //   setDraggables(draggables)
-  // });
+  React.useEffect(() => {
+    setDraggables(Array(4).fill(undefined).map((_,i) => createDraggableData(i)));
+  }, []);
 
   const onLayoutButtonGroup = React.useCallback((e: LayoutChangeEvent) => {
     setButtonGroupOffset({
@@ -59,28 +61,32 @@ export default function AnimatedScreen({ navigation }: RootTabScreenProps<'Anima
     const drag = draggables.find((drag) => drag.id === id);
     if (drag) {
       setTotal(drag.data.count);
-      setDraggables(draggables.filter((v) => v.id !== drag.id));
+      const newArr = draggables.filter((v) => v != drag);
+      setDraggables(newArr);
+      console.debug(newArr.map((v) => v.id));
+
+      // setTimeout(() => {
+      //   setDraggables(newArr);
+      // }, 1000);
     }
-    setTimeout(() => {
-      setDraggables(draggables);
-    }, 0);
   }
 
   const onChange = (id: string, x: number, y: number) => {
     setDraggables(draggables.map((drag) => drag.id === id ? {...drag, layout: { ...drag.layout, x, y }} : drag));
   }
 
-  const createDraggableData = (i?: number):Draggable =>  {
-    const id = i ?? draggables.length + 1;
-    return {
-      id: `draggable-${id}`,
-      layout: { x: (id * 35), y: (id * 40), width: 80, height: 60 },
-      dragging: false,
-      onDragStart: () => console.debug('onDragStart'),
-      onDragEnd: () => console.debug('onDragStart'),
-      data: { count: id },
-    }
-  };
+  const onChangeDrag = (id: string, x: number, y: number) => {
+    setDrag({ ...drag, layout: { ...drag.layout, x, y } });
+  }
+
+  const onReleaseDrag = () => {
+    setDraggables([...draggables, drag]);
+    setDrag(createDraggableData(0))
+  }
+
+  const onPressNewDrag = () => {
+    setDrag({ ...drag, data: { count: drag.data.count + 1 } })
+  }
 
   return (
     <View style={[styles.container, { marginTop: top }]}>
@@ -103,7 +109,7 @@ export default function AnimatedScreen({ navigation }: RootTabScreenProps<'Anima
               onMove={onMove}
               onRelease={() => onRelease(drag.id)}
             />
-        )), [reset])}
+        )), [draggables])}
       </View>
       {React.useMemo(() =>
         <View style={styles.dropView} onLayout={onLayoutDroppable}>
@@ -111,9 +117,21 @@ export default function AnimatedScreen({ navigation }: RootTabScreenProps<'Anima
         </View>
       , [droppableOffset, total])} */}
       <View style={styles.buttonGroup} onLayout={onLayoutButtonGroup}>
-        <Pressable style={styles.button} onPress={() => console.debug('onPress > reset')}>
+        <Pressable style={styles.button} onPress={onPressNewDrag}>
+        {/* <Pressable style={styles.button} onPress={() => setDraggables(draggables)}> */}
           <Text style={styles.buttonText}>リセット</Text>
         </Pressable>
+        {Array(10 - draggables.length).fill(undefined).map((_, i) => 
+          <DragBox
+            key={`new-draggables-${i}`}
+            drag={drag}
+            count={drag.data.count}
+            droppableOffset={initialOffset}
+            onChange={onChangeDrag}
+            onMove={onMove}
+            onRelease={onReleaseDrag}
+          />
+        )}
       </View>
     </View>
   );

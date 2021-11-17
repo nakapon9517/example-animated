@@ -1,5 +1,5 @@
-import React from "react";
-import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, LayoutChangeEvent, GestureResponderEvent, PanResponderGestureState, useWindowDimensions } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, LayoutChangeEvent, Dimensions } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Layout from "../constants/Layout";
 
@@ -13,57 +13,55 @@ type Props = {
   onRelease: (drag: Draggable) => void;
 } & ViewProps;
 const initialOffset = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+const DRAG_HEIGHT = Dimensions.get('screen').height * .5
 
 const DragAndDrop = (props: Props) => {
-  const { width, height } = useWindowDimensions();
   const { top, right, bottom, left } = useSafeAreaInsets();
   const [draggableOffset, setDraggableOffset] = React.useState<Offset>(initialOffset);
   const [droppableOffset, setDroppableOffset] = React.useState<Offset>(initialOffset);
 
-  const onLayoutDraggable = React.useCallback((e: LayoutChangeEvent) => {
+  const onLayoutDraggable = useCallback((e: LayoutChangeEvent) => {
     setDraggableOffset({
       minX: e.nativeEvent.layout.x,
       maxX: e.nativeEvent.layout.width,
       minY: top,
-      maxY: top + e.nativeEvent.layout.height,
+      maxY: top + DRAG_HEIGHT,
     })
   }, []);
 
-  const onLayoutDroppable = React.useCallback((e: LayoutChangeEvent) => {
+  const onLayoutDroppable = useCallback((e: LayoutChangeEvent) => {
     setDroppableOffset({
       minX: e.nativeEvent.layout.x,
       maxX: e.nativeEvent.layout.width,
-      minY: draggableOffset.maxY,
-      maxY: draggableOffset.maxY + e.nativeEvent.layout.height,
+      minY: top + DRAG_HEIGHT,
+      maxY: top + DRAG_HEIGHT + e.nativeEvent.layout.height,
     })
   }, [draggableOffset]);
 
   return (
     <View style={styles.container}>
       <View style={styles.dragView} onLayout={onLayoutDraggable}>
-        {(draggableOffset.maxY < droppableOffset.maxY) &&
-          props.draggables.map((drag, i) => (
-            <DragBox
-              key={`draggable-${i}`}
-              drag={drag}
-              count={drag.data.count}
-              droppableOffset={droppableOffset}
-              onChange={props.onChange}
-              onMove={props.onMove}
-              onRelease={() => props.onRelease(drag)}
-            />
-            // <Pressable
-            //   key={`draggable-${i}`}
-            //   style={{width: 60, height :40, backgroundColor: 'gray'}}
-            //   onPress={() => onRelease(drag.id)}
-            // >
-            //   <Text>{drag.data.count}</Text>
-            // </Pressable>
-        ))}
+        {useMemo(() => {
+          return (
+            draggableOffset.maxY < droppableOffset.maxY && props.draggables.map((drag, i) => (
+              <DragBox
+                key={`draggable-${i}`}
+                drag={drag}
+                count={drag.data.count}
+                droppableOffset={droppableOffset}
+                onChange={props.onChange}
+                onMove={props.onMove}
+                onRelease={() => props.onRelease(drag)}
+              />
+            ))
+          )
+        }, [draggableOffset, droppableOffset])}
       </View>
-      <View style={styles.dropView} onLayout={onLayoutDroppable}>
-        <Text style={styles.total}>{props.total}</Text>
-      </View>
+      {React.useMemo(() =>
+        <View style={styles.dropView} onLayout={onLayoutDroppable}>
+          <Text style={styles.total}>{props.total}</Text>
+        </View>
+      , [droppableOffset, props.total])}
     </View>
   );
 }
@@ -73,15 +71,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dragView: {
-    flex: 2,
-    backgroundColor: '#fff',
-    position: 'relative',
+    height: DRAG_HEIGHT,
+    backgroundColor: '#eee',
   },
   dropView: {
-    height: '30%',
+    flex: 1,
     backgroundColor: '#777',
     zIndex: 1,
-    padding: 24
+    padding: 24,
+    opacity: .7
   },
   total: {
     fontSize: 36,

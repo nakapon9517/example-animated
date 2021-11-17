@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, GestureResponderEvent, PanResponderGestureState } from "react-native";
+import { Animated, View, StyleSheet, PanResponder, Text, Pressable, ViewProps, GestureResponderEvent, PanResponderGestureState, Platform } from "react-native";
 
 export type Offset = {
   minX: number,
@@ -54,10 +54,12 @@ const DragBox = (props: Props) => {
     PanResponder.create({
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onPanResponderEnd: () => true,
 
       // onPanResponderRelease許可
-      onPanResponderTerminationRequest: () => true,
+      // onPanResponderTerminationRequest: () => true,
       // onShouldBlockNativeResponder: () => true,
 
       onPanResponderGrant: (e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
@@ -98,11 +100,10 @@ const DragBox = (props: Props) => {
       }
     })
   ).current;
-
   return (
     <Animated.View
       style={[
-        { transform: [{ translateX: pan.x }, { translateY: pan.y }] },
+        { transform: pan.getTranslateTransform() },
         { zIndex: 99 }
       ]}
       {...panResponder.panHandlers}
@@ -124,6 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#ccc',
+    backgroundColor: '#fff',
   },
   text: {
     color: '#000',
